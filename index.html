@@ -80,12 +80,19 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 26px;
       cursor: pointer;
       user-select: none;
       position: relative;
       transition: transform 0.12s, box-shadow 0.12s;
       border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .cell svg {
+      width: 38px;
+      height: 38px;
+      display: block;
+      pointer-events: none;
+      flex-shrink: 0;
     }
 
     .cell:hover:not(.disabled) {
@@ -257,7 +264,17 @@
 
     .legend-item:last-child { border-bottom: none; }
 
-    .leg-emoji { font-size: 18px; width: 22px; text-align: center; }
+    .leg-icon {
+      width: 28px;
+      height: 28px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 5px;
+    }
+
+    .leg-icon svg { width: 22px; height: 22px; }
 
     .leg-name  { font-size: 0.78rem; color: #ccc; flex: 1; }
 
@@ -265,11 +282,11 @@
       font-size: 0.68rem;
       color: #888;
       text-align: right;
-      line-height: 1.4;
+      line-height: 1.5;
     }
 
-    .leg-pts span.t { color: #c4956a; }
-    .leg-pts span.e { color: #c8e44a; }
+    .leg-pts span.t { color: #c4956a; display: block; }
+    .leg-pts span.e { color: #c8e44a; display: block; }
 
     /* Button */
     #btn-nuevo {
@@ -364,7 +381,8 @@
 
     @media (max-width: 680px) {
       #board { grid-template-columns: repeat(8, 40px); grid-template-rows: repeat(8, 40px); }
-      .cell { width: 40px; height: 40px; font-size: 18px; border-radius: 7px; }
+      .cell { width: 40px; height: 40px; border-radius: 7px; }
+      .cell svg { width: 26px; height: 26px; }
       #info-panel { width: 100%; flex-direction: row; flex-wrap: wrap; }
       .panel-box { flex: 1 1 140px; }
     }
@@ -419,36 +437,7 @@
 
     <div class="panel-box">
       <div class="panel-title">Guía de Puntaje</div>
-      <div class="legend-item">
-        <span class="leg-emoji">🗑️</span>
-        <span class="leg-name">Bolsa</span>
-        <span class="leg-pts"><span class="t">🗑️ +10</span></span>
-      </div>
-      <div class="legend-item">
-        <span class="leg-emoji">♻️</span>
-        <span class="leg-name">Plástico</span>
-        <span class="leg-pts"><span class="t">🗑️ +8</span>  <span class="e">⚡ +2</span></span>
-      </div>
-      <div class="legend-item">
-        <span class="leg-emoji">🥫</span>
-        <span class="leg-name">Lata</span>
-        <span class="leg-pts"><span class="t">🗑️ +5</span>  <span class="e">⚡ +8</span></span>
-      </div>
-      <div class="legend-item">
-        <span class="leg-emoji">📰</span>
-        <span class="leg-name">Papel</span>
-        <span class="leg-pts"><span class="t">🗑️ +6</span>  <span class="e">⚡ +1</span></span>
-      </div>
-      <div class="legend-item">
-        <span class="leg-emoji">🍶</span>
-        <span class="leg-name">Vidrio</span>
-        <span class="leg-pts"><span class="t">🗑️ +7</span>  <span class="e">⚡ +3</span></span>
-      </div>
-      <div class="legend-item">
-        <span class="leg-emoji">🔋</span>
-        <span class="leg-name">Batería</span>
-        <span class="leg-pts"><span class="t">🗑️ +2</span>  <span class="e">⚡ +15</span></span>
-      </div>
+      <div id="legend-items"></div>
     </div>
 
     <button id="btn-nuevo">🔄 Nuevo Juego</button>
@@ -484,12 +473,78 @@
   const MOVES_MAX = 30;
 
   const TYPES = [
-    { id: 0, emoji: '🗑️', name: 'Bolsa',    bg: '#3e2a1e', border: '#6e4a30', trashPts: 10, elecPts: 0  },
-    { id: 1, emoji: '♻️', name: 'Plástico', bg: '#1a2e1a', border: '#3a6e3a', trashPts: 8,  elecPts: 2  },
-    { id: 2, emoji: '🥫', name: 'Lata',     bg: '#2a2a2a', border: '#606060', trashPts: 5,  elecPts: 8  },
-    { id: 3, emoji: '📰', name: 'Papel',    bg: '#2e2a18', border: '#6e6030', trashPts: 6,  elecPts: 1  },
-    { id: 4, emoji: '🍶', name: 'Vidrio',   bg: '#0e2a2e', border: '#1e606e', trashPts: 7,  elecPts: 3  },
-    { id: 5, emoji: '🔋', name: 'Batería',  bg: '#2e1a08', border: '#8e4e0e', trashPts: 2,  elecPts: 15 },
+    {
+      id: 0, name: 'Bolsa', bg: '#28201a', border: '#6e4a30',
+      trashPts: 10, elecPts: 0,
+      svg: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="20" cy="8.5" r="3.5" fill="#8a7a6a" stroke="#bbb" stroke-width="1"/>
+        <path d="M17 8.5 C14 5.5 11 7 13.5 9.5" fill="none" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M23 8.5 C26 5.5 29 7 26.5 9.5" fill="none" stroke="#bbb" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M13.5 11.5 C8 13.5 7 19 7 24 L8 33 C8 36.5 20 38 20 38 C20 38 32 36.5 32 33 L33 24 C33 19 32 13.5 26.5 11.5 Z" fill="#484848" stroke="#707070" stroke-width="1.5"/>
+        <path d="M14 20 Q20 23 26 20" stroke="#5a5a5a" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        <path d="M13 27 Q20 30 27 27" stroke="#505050" stroke-width="1" fill="none" stroke-linecap="round"/>
+      </svg>`
+    },
+    {
+      id: 1, name: 'Plástico', bg: '#0a1828', border: '#1e5a9a',
+      trashPts: 8, elecPts: 2,
+      svg: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <rect x="15" y="4" width="10" height="6" rx="2" fill="#1a5cb4"/>
+        <rect x="16" y="9" width="8" height="5" fill="#1e6fd0"/>
+        <path d="M13 14 L11 33 C11 36.5 29 36.5 29 33 L27 14 Z" fill="#2196f3" opacity="0.9"/>
+        <line x1="13" y1="14" x2="27" y2="14" stroke="#1565c0" stroke-width="1.2"/>
+        <path d="M15 18 L14 30" stroke="rgba(255,255,255,0.4)" stroke-width="2" stroke-linecap="round"/>
+        <text x="20" y="28.5" text-anchor="middle" font-size="10" fill="rgba(255,255,255,0.9)" font-family="Arial,sans-serif" font-weight="bold">♻</text>
+      </svg>`
+    },
+    {
+      id: 2, name: 'Lata', bg: '#181818', border: '#606060',
+      trashPts: 5, elecPts: 8,
+      svg: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="20" cy="10" rx="10" ry="3.5" fill="#e0e0e0"/>
+        <rect x="10" y="10" width="20" height="22" fill="#bdbdbd"/>
+        <rect x="10" y="10" width="5.5" height="22" fill="rgba(255,255,255,0.25)"/>
+        <ellipse cx="20" cy="32" rx="10" ry="3.5" fill="#9e9e9e"/>
+        <ellipse cx="20" cy="14" rx="10" ry="1.5" fill="none" stroke="#ccc" stroke-width="0.8"/>
+        <ellipse cx="20" cy="28" rx="10" ry="1.5" fill="none" stroke="#888" stroke-width="0.8"/>
+        <ellipse cx="20" cy="8.5" rx="3.5" ry="1.5" fill="#f0f0f0" stroke="#bbb" stroke-width="0.8"/>
+        <path d="M20 7 L20 4.5 L22 4.5" fill="none" stroke="#ccc" stroke-width="1" stroke-linecap="round"/>
+      </svg>`
+    },
+    {
+      id: 3, name: 'Papel', bg: '#1a1408', border: '#6e5820',
+      trashPts: 6, elecPts: 1,
+      svg: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <path d="M7 5 L28 5 L33 10 L33 37 L7 37 Z" fill="#fdf5d0" stroke="#c49000" stroke-width="1.5"/>
+        <path d="M28 5 L28 10 L33 10 Z" fill="#e6b800"/>
+        <rect x="10" y="9" width="14" height="7" rx="1" fill="#ffd740" opacity="0.55"/>
+        <line x1="10" y1="21" x2="30" y2="21" stroke="#c49000" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="10" y1="25" x2="30" y2="25" stroke="#c49000" stroke-width="1.5" stroke-linecap="round"/>
+        <line x1="10" y1="29" x2="22" y2="29" stroke="#c49000" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>`
+    },
+    {
+      id: 4, name: 'Vidrio', bg: '#061418', border: '#0e6060',
+      trashPts: 7, elecPts: 3,
+      svg: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <rect x="16.5" y="3" width="7" height="5" rx="1.5" fill="#00695c"/>
+        <rect x="15.5" y="7" width="9" height="6" fill="#00897b"/>
+        <path d="M15.5 12.5 Q11 15 11 20 L11 33 C11 36.5 29 36.5 29 33 L29 20 Q29 15 24.5 12.5 Z" fill="#26a69a"/>
+        <line x1="15.5" y1="13" x2="24.5" y2="13" stroke="#00695c" stroke-width="1"/>
+        <path d="M13.5 20.5 L13 31" stroke="rgba(255,255,255,0.35)" stroke-width="2" stroke-linecap="round"/>
+        <rect x="14.5" y="22" width="11" height="9" rx="2" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.2)" stroke-width="0.8"/>
+      </svg>`
+    },
+    {
+      id: 5, name: 'Batería', bg: '#1c0a00', border: '#8a3a00',
+      trashPts: 2, elecPts: 15,
+      svg: `<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <rect x="3" y="12" width="30" height="16" rx="3.5" fill="#bf360c" stroke="#ff6d00" stroke-width="1.5"/>
+        <rect x="33" y="17" width="4.5" height="6" rx="1.5" fill="#ff6d00"/>
+        <rect x="6" y="15.5" width="16" height="9" rx="2" fill="#e64a19"/>
+        <path d="M25 14 L20 21.5 L23.5 21.5 L18.5 26.5 L23 19.5 L19.5 19.5 Z" fill="#fff176" stroke="#ffcc00" stroke-width="0.4"/>
+      </svg>`
+    },
   ];
 
   /* ===== STATE ===== */
@@ -546,7 +601,7 @@
         cell.dataset.c = c;
         cell.style.background = t.bg;
         cell.style.borderColor = t.border;
-        cell.textContent = t.emoji;
+        cell.innerHTML = t.svg;
         cell.addEventListener('click', onCellClick);
         boardEl.appendChild(cell);
       }
@@ -786,10 +841,28 @@
     renderBoard();
   }
 
+  /* ===== LEGEND ===== */
+
+  function buildLegend() {
+    const container = document.getElementById('legend-items');
+    TYPES.forEach(t => {
+      const item = document.createElement('div');
+      item.className = 'legend-item';
+      const ptsHtml = `<span class="t">🗑️ +${t.trashPts}</span>${t.elecPts > 0 ? `<span class="e">⚡ +${t.elecPts}</span>` : ''}`;
+      item.innerHTML = `
+        <span class="leg-icon" style="background:${t.bg};border:1px solid ${t.border}">${t.svg}</span>
+        <span class="leg-name">${t.name}</span>
+        <span class="leg-pts">${ptsHtml}</span>
+      `;
+      container.appendChild(item);
+    });
+  }
+
   document.getElementById('btn-nuevo').addEventListener('click', newGame);
   document.getElementById('btn-overlay-nuevo').addEventListener('click', newGame);
 
   /* ===== START ===== */
+  buildLegend();
   newGame();
 </script>
 </body>
