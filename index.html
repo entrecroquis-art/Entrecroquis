@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trash Crush — Entrecroquis</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #111;
+      color: #e0e0e0;
+      font-family: 'Segoe UI', Tahoma, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px 10px;
+      background-image: radial-gradient(ellipse at top, #1b2a1b 0%, #111 60%);
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 22px;
+    }
+
+    header h1 {
+      font-size: 2.4rem;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: #aaee44;
+      text-shadow: 0 0 16px #6abf0088, 0 2px 0 #222;
+    }
+
+    header p {
+      color: #888;
+      font-size: 0.85rem;
+      margin-top: 4px;
+      letter-spacing: 1px;
+    }
+
+    #game-wrap {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* ======= BOARD ======= */
+
+    #board-container {
+      background: #1e1e1e;
+      border: 2px solid #333;
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 0 32px #3a7a0030, 0 4px 12px #0006;
+    }
+
+    #board-label {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #555;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    #board {
+      display: grid;
+      grid-template-columns: repeat(8, 58px);
+      grid-template-rows: repeat(8, 58px);
+      gap: 4px;
+    }
+
+    .cell {
+      width: 58px;
+      height: 58px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+      transition: transform 0.12s, box-shadow 0.12s;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .cell:hover:not(.disabled) {
+      transform: scale(1.08);
+      z-index: 2;
+    }
+
+    .cell.selected {
+      box-shadow: 0 0 0 3px #aaee44, 0 0 10px #aaee4488;
+      transform: scale(1.12);
+      z-index: 3;
+    }
+
+    .cell.hint {
+      animation: hint-pulse 0.5s ease 2;
+    }
+
+    @keyframes hint-pulse {
+      0%, 100% { box-shadow: none; }
+      50% { box-shadow: 0 0 0 3px #ffee44aa; }
+    }
+
+    .cell.pop {
+      animation: cell-pop 0.35s ease forwards;
+      pointer-events: none;
+    }
+
+    @keyframes cell-pop {
+      0%   { transform: scale(1);    opacity: 1; }
+      40%  { transform: scale(1.35); opacity: 0.8; }
+      100% { transform: scale(0);    opacity: 0; }
+    }
+
+    .cell.fall-in {
+      animation: cell-fall 0.28s cubic-bezier(0.22,1,0.36,1) both;
+    }
+
+    @keyframes cell-fall {
+      from { transform: translateY(-70px); opacity: 0; }
+      to   { transform: translateY(0);     opacity: 1; }
+    }
+
+    .cell.swap-flash {
+      animation: swap-flash 0.2s ease;
+    }
+
+    @keyframes swap-flash {
+      0%, 100% { filter: brightness(1); }
+      50%      { filter: brightness(1.9); }
+    }
+
+    .cell.disabled { cursor: default; }
+
+    /* ======= INFO PANEL ======= */
+
+    #info-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 210px;
+    }
+
+    .panel-box {
+      background: #1e1e1e;
+      border: 2px solid #333;
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 2px 8px #0005;
+    }
+
+    .panel-title {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: #666;
+      margin-bottom: 10px;
+    }
+
+    /* Score boxes */
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+    }
+
+    .score-row:last-child { margin-bottom: 0; }
+
+    .score-row.trash-row  { background: #2a1e16; border: 1px solid #5d3e2e; }
+    .score-row.elec-row   { background: #1a1f0e; border: 1px solid #4a6020; }
+
+    .score-icon { font-size: 1.5rem; }
+
+    .score-info { flex: 1; }
+
+    .score-label {
+      font-size: 0.68rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #888;
+    }
+
+    .score-val {
+      font-size: 1.6rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-top: 1px;
+    }
+
+    .trash-row .score-val  { color: #c4956a; }
+    .elec-row  .score-val  { color: #c8e44a; }
+
+    /* Moves */
+    #moves-display {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    #moves-label { color: #888; font-size: 0.75rem; }
+
+    #moves-val {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #4fc3f7;
+      min-width: 48px;
+      text-align: right;
+    }
+
+    #moves-val.low { color: #ef5350; animation: blink 0.8s ease infinite; }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.35; }
+    }
+
+    /* Message */
+    #message {
+      background: #181818;
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 0.8rem;
+      color: #aaa;
+      text-align: center;
+      min-height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid #2a2a2a;
+      transition: color 0.2s;
+    }
+
+    #message.good  { color: #aaee44; }
+    #message.combo { color: #ffee44; font-weight: bold; }
+    #message.bad   { color: #ef5350; }
+    #message.end   { color: #90caf9; }
+
+    /* Legend */
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid #2a2a2a;
+    }
+
+    .legend-item:last-child { border-bottom: none; }
+
+    .leg-emoji { font-size: 18px; width: 22px; text-align: center; }
+
+    .leg-name  { font-size: 0.78rem; color: #ccc; flex: 1; }
+
+    .leg-pts   {
+      font-size: 0.68rem;
+      color: #888;
+      text-align: right;
+      line-height: 1.4;
+    }
+
+    .leg-pts span.t { color: #c4956a; }
+    .leg-pts span.e { color: #c8e44a; }
+
+    /* Button */
+    #btn-nuevo {
+      width: 100%;
+      background: linear-gradient(135deg, #2e5e12, #4a8a1e);
+      color: #d4f04a;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 1px;
+      transition: filter 0.2s, transform 0.1s;
+      text-transform: uppercase;
+    }
+
+    #btn-nuevo:hover  { filter: brightness(1.15); }
+    #btn-nuevo:active { transform: scale(0.97); }
+
+    /* ======= GAME OVER overlay ======= */
+
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000b;
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(3px);
+    }
+
+    #overlay.show { display: flex; }
+
+    #overlay-box {
+      background: #1e2a1e;
+      border: 2px solid #4a8a1e;
+      border-radius: 18px;
+      padding: 36px 44px;
+      text-align: center;
+      box-shadow: 0 0 40px #3a7a0060;
+      animation: pop-in 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    }
+
+    @keyframes pop-in {
+      from { transform: scale(0.6); opacity: 0; }
+      to   { transform: scale(1);   opacity: 1; }
+    }
+
+    #overlay-box h2 {
+      font-size: 2rem;
+      color: #aaee44;
+      margin-bottom: 16px;
+    }
+
+    .final-scores {
+      display: flex;
+      gap: 24px;
+      justify-content: center;
+      margin: 18px 0 24px;
+    }
+
+    .final-score-box {
+      background: #151f15;
+      border-radius: 10px;
+      padding: 14px 20px;
+      border: 1px solid #2a3a2a;
+    }
+
+    .final-score-box .fs-icon { font-size: 1.8rem; }
+    .final-score-box .fs-val  { font-size: 2rem; font-weight: 800; margin-top: 4px; }
+    .final-score-box .fs-label { font-size: 0.7rem; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+    .final-score-box.t .fs-val { color: #c4956a; }
+    .final-score-box.e .fs-val { color: #c8e44a; }
+
+    #btn-overlay-nuevo {
+      background: linear-gradient(135deg, #2e5e12, #4a8a1e);
+      color: #d4f04a;
+      border: none;
+      border-radius: 10px;
+      padding: 13px 32px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      transition: filter 0.2s;
+    }
+
+    #btn-overlay-nuevo:hover { filter: brightness(1.2); }
+
+    @media (max-width: 680px) {
+      #board { grid-template-columns: repeat(8, 40px); grid-template-rows: repeat(8, 40px); }
+      .cell { width: 40px; height: 40px; font-size: 18px; border-radius: 7px; }
+      #info-panel { width: 100%; flex-direction: row; flex-wrap: wrap; }
+      .panel-box { flex: 1 1 140px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🗑️ TRASH CRUSH</h1>
+  <p>Recolectá basura · Generá energía · Salvá el planeta</p>
+</header>
+
+<div id="game-wrap">
+
+  <!-- TABLERO -->
+  <div id="board-container">
+    <div id="board-label">Tablero de Basura</div>
+    <div id="board"></div>
+  </div>
+
+  <!-- PANEL DE INFO -->
+  <div id="info-panel">
+
+    <div class="panel-box">
+      <div class="panel-title">Puntuación</div>
+      <div class="score-row trash-row">
+        <div class="score-icon">🗑️</div>
+        <div class="score-info">
+          <div class="score-label">Basura Recolectada</div>
+          <div class="score-val" id="trash-score">0</div>
+        </div>
+      </div>
+      <div class="score-row elec-row">
+        <div class="score-icon">⚡</div>
+        <div class="score-info">
+          <div class="score-label">Energía Eléctrica</div>
+          <div class="score-val" id="elec-score">0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-box">
+      <div id="moves-display">
+        <div>
+          <div id="moves-label">Movimientos restantes</div>
+        </div>
+        <div id="moves-val">30</div>
+      </div>
+    </div>
+
+    <div id="message">¡Seleccioná una pieza!</div>
+
+    <div class="panel-box">
+      <div class="panel-title">Guía de Puntaje</div>
+      <div class="legend-item">
+        <span class="leg-emoji">🗑️</span>
+        <span class="leg-name">Bolsa</span>
+        <span class="leg-pts"><span class="t">🗑️ +10</span></span>
+      </div>
+      <div class="legend-item">
+        <span class="leg-emoji">♻️</span>
+        <span class="leg-name">Plástico</span>
+        <span class="leg-pts"><span class="t">🗑️ +8</span>  <span class="e">⚡ +2</span></span>
+      </div>
+      <div class="legend-item">
+        <span class="leg-emoji">🥫</span>
+        <span class="leg-name">Lata</span>
+        <span class="leg-pts"><span class="t">🗑️ +5</span>  <span class="e">⚡ +8</span></span>
+      </div>
+      <div class="legend-item">
+        <span class="leg-emoji">📰</span>
+        <span class="leg-name">Papel</span>
+        <span class="leg-pts"><span class="t">🗑️ +6</span>  <span class="e">⚡ +1</span></span>
+      </div>
+      <div class="legend-item">
+        <span class="leg-emoji">🍶</span>
+        <span class="leg-name">Vidrio</span>
+        <span class="leg-pts"><span class="t">🗑️ +7</span>  <span class="e">⚡ +3</span></span>
+      </div>
+      <div class="legend-item">
+        <span class="leg-emoji">🔋</span>
+        <span class="leg-name">Batería</span>
+        <span class="leg-pts"><span class="t">🗑️ +2</span>  <span class="e">⚡ +15</span></span>
+      </div>
+    </div>
+
+    <button id="btn-nuevo">🔄 Nuevo Juego</button>
+
+  </div>
+</div>
+
+<!-- GAME OVER OVERLAY -->
+<div id="overlay">
+  <div id="overlay-box">
+    <h2>🏁 ¡Fin del Juego!</h2>
+    <p style="color:#888; font-size:0.85rem;">Resultados finales</p>
+    <div class="final-scores">
+      <div class="final-score-box t">
+        <div class="fs-icon">🗑️</div>
+        <div class="fs-val" id="final-trash">0</div>
+        <div class="fs-label">Basura</div>
+      </div>
+      <div class="final-score-box e">
+        <div class="fs-icon">⚡</div>
+        <div class="fs-val" id="final-elec">0</div>
+        <div class="fs-label">Energía</div>
+      </div>
+    </div>
+    <button id="btn-overlay-nuevo">🔄 Jugar de Nuevo</button>
+  </div>
+</div>
+
+<script>
+  /* ===== CONSTANTS ===== */
+
+  const SIZE = 8;
+  const MOVES_MAX = 30;
+
+  const TYPES = [
+    { id: 0, emoji: '🗑️', name: 'Bolsa',    bg: '#3e2a1e', border: '#6e4a30', trashPts: 10, elecPts: 0  },
+    { id: 1, emoji: '♻️', name: 'Plástico', bg: '#1a2e1a', border: '#3a6e3a', trashPts: 8,  elecPts: 2  },
+    { id: 2, emoji: '🥫', name: 'Lata',     bg: '#2a2a2a', border: '#606060', trashPts: 5,  elecPts: 8  },
+    { id: 3, emoji: '📰', name: 'Papel',    bg: '#2e2a18', border: '#6e6030', trashPts: 6,  elecPts: 1  },
+    { id: 4, emoji: '🍶', name: 'Vidrio',   bg: '#0e2a2e', border: '#1e606e', trashPts: 7,  elecPts: 3  },
+    { id: 5, emoji: '🔋', name: 'Batería',  bg: '#2e1a08', border: '#8e4e0e', trashPts: 2,  elecPts: 15 },
+  ];
+
+  /* ===== STATE ===== */
+
+  let board = [];        // 2D [row][col] → type id
+  let selected = null;   // { r, c } or null
+  let trashScore = 0;
+  let elecScore  = 0;
+  let movesLeft  = MOVES_MAX;
+  let busy = false;
+
+  /* ===== DOM REFS ===== */
+
+  const boardEl      = document.getElementById('board');
+  const trashScoreEl = document.getElementById('trash-score');
+  const elecScoreEl  = document.getElementById('elec-score');
+  const movesValEl   = document.getElementById('moves-val');
+  const messageEl    = document.getElementById('message');
+  const overlay      = document.getElementById('overlay');
+  const finalTrash   = document.getElementById('final-trash');
+  const finalElec    = document.getElementById('final-elec');
+
+  /* ===== BOARD INIT ===== */
+
+  function rndType() { return Math.floor(Math.random() * TYPES.length); }
+
+  function initBoard() {
+    board = Array.from({ length: SIZE }, () => new Array(SIZE).fill(0));
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        let t;
+        do {
+          t = rndType();
+        } while (
+          (c >= 2 && board[r][c-1] === t && board[r][c-2] === t) ||
+          (r >= 2 && board[r-1][c] === t && board[r-2][c] === t)
+        );
+        board[r][c] = t;
+      }
+    }
+  }
+
+  /* ===== RENDER ===== */
+
+  function renderBoard(newRows = new Set()) {
+    boardEl.innerHTML = '';
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        const t = TYPES[board[r][c]];
+        const cell = document.createElement('div');
+        cell.className = 'cell' + (movesLeft <= 0 ? ' disabled' : '');
+        if (newRows.has(r * SIZE + c)) cell.classList.add('fall-in');
+        cell.dataset.r = r;
+        cell.dataset.c = c;
+        cell.style.background = t.bg;
+        cell.style.borderColor = t.border;
+        cell.textContent = t.emoji;
+        cell.addEventListener('click', onCellClick);
+        boardEl.appendChild(cell);
+      }
+    }
+  }
+
+  function cellEl(r, c) {
+    return boardEl.querySelector(`[data-r="${r}"][data-c="${c}"]`);
+  }
+
+  /* ===== INTERACTION ===== */
+
+  function onCellClick(e) {
+    if (busy || movesLeft <= 0) return;
+
+    const r = +e.currentTarget.dataset.r;
+    const c = +e.currentTarget.dataset.c;
+
+    if (!selected) {
+      selected = { r, c };
+      e.currentTarget.classList.add('selected');
+      setMsg('Tocá una pieza adyacente para intercambiar.', '');
+      return;
+    }
+
+    const prev = selected;
+    selected = null;
+    boardEl.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
+
+    if (prev.r === r && prev.c === c) {
+      setMsg('¡Seleccioná una pieza!', '');
+      return;
+    }
+
+    const dr = Math.abs(r - prev.r);
+    const dc = Math.abs(c - prev.c);
+
+    if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+      trySwap(prev.r, prev.c, r, c);
+    } else {
+      // re-select the new cell
+      selected = { r, c };
+      e.currentTarget.classList.add('selected');
+      setMsg('Tocá una pieza adyacente.', '');
+    }
+  }
+
+  /* ===== SWAP & MATCH ===== */
+
+  async function trySwap(r1, c1, r2, c2) {
+    busy = true;
+
+    swapData(r1, c1, r2, c2);
+    const matches = findMatches();
+
+    if (matches.length > 0) {
+      movesLeft--;
+      updateMovesDisplay();
+      flashCells([{r:r1,c:c1},{r:r2,c:c2}]);
+      await delay(180);
+      await processMatches(matches, 1);
+      if (movesLeft <= 0) triggerEndGame();
+    } else {
+      swapData(r1, c1, r2, c2); // revert
+      flashCells([{r:r1,c:c1},{r:r2,c:c2}]);
+      renderBoard();
+      await delay(200);
+      setMsg('Sin coincidencias. ¡Intentá otro movimiento!', 'bad');
+    }
+
+    busy = false;
+  }
+
+  function swapData(r1, c1, r2, c2) {
+    const tmp = board[r1][c1];
+    board[r1][c1] = board[r2][c2];
+    board[r2][c2] = tmp;
+  }
+
+  /* ===== MATCH DETECTION ===== */
+
+  function findMatches() {
+    const set = new Set();
+
+    // Horizontal
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE - 2; c++) {
+        const t = board[r][c];
+        if (t === board[r][c+1] && t === board[r][c+2]) {
+          let end = c + 3;
+          while (end < SIZE && board[r][end] === t) end++;
+          for (let k = c; k < end; k++) set.add(r * SIZE + k);
+        }
+      }
+    }
+
+    // Vertical
+    for (let r = 0; r < SIZE - 2; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        const t = board[r][c];
+        if (t === board[r+1][c] && t === board[r+2][c]) {
+          let end = r + 3;
+          while (end < SIZE && board[end][c] === t) end++;
+          for (let k = r; k < end; k++) set.add(k * SIZE + c);
+        }
+      }
+    }
+
+    return [...set].map(key => ({ r: Math.floor(key / SIZE), c: key % SIZE }));
+  }
+
+  /* ===== PROCESS MATCHES ===== */
+
+  async function processMatches(matches, combo) {
+    // Score
+    let trash = 0, elec = 0;
+    matches.forEach(({ r, c }) => {
+      const t = TYPES[board[r][c]];
+      trash += t.trashPts * combo;
+      elec  += t.elecPts  * combo;
+    });
+    trashScore += trash;
+    elecScore  += elec;
+    trashScoreEl.textContent = trashScore;
+    elecScoreEl.textContent  = elecScore;
+
+    if (combo > 1) {
+      setMsg(`🔥 COMBO ×${combo}!  +🗑️${trash}  +⚡${elec}`, 'combo');
+    } else {
+      setMsg(`+🗑️${trash}  +⚡${elec}`, 'good');
+    }
+
+    // Animate pop
+    matches.forEach(({ r, c }) => {
+      const el = cellEl(r, c);
+      if (el) { el.classList.add('pop'); el.style.pointerEvents = 'none'; }
+    });
+    await delay(360);
+
+    // Remove from board
+    matches.forEach(({ r, c }) => { board[r][c] = -1; });
+
+    // Gravity
+    applyGravity();
+
+    // Track new cells (top rows that get filled)
+    const newCells = fillBoard();
+
+    // Re-render
+    renderBoard(newCells);
+
+    // Cascade check
+    await delay(120);
+    const next = findMatches();
+    if (next.length > 0) {
+      await delay(180);
+      await processMatches(next, combo + 1);
+    }
+  }
+
+  function applyGravity() {
+    for (let c = 0; c < SIZE; c++) {
+      let write = SIZE - 1;
+      for (let r = SIZE - 1; r >= 0; r--) {
+        if (board[r][c] !== -1) {
+          board[write][c] = board[r][c];
+          if (write !== r) board[r][c] = -1;
+          write--;
+        }
+      }
+      while (write >= 0) { board[write][c] = -1; write--; }
+    }
+  }
+
+  function fillBoard() {
+    const newSet = new Set();
+    for (let r = 0; r < SIZE; r++) {
+      for (let c = 0; c < SIZE; c++) {
+        if (board[r][c] === -1) {
+          board[r][c] = rndType();
+          newSet.add(r * SIZE + c);
+        }
+      }
+    }
+    return newSet;
+  }
+
+  /* ===== HELPERS ===== */
+
+  function flashCells(cells) {
+    cells.forEach(({ r, c }) => {
+      const el = cellEl(r, c);
+      if (!el) return;
+      el.classList.remove('swap-flash');
+      void el.offsetWidth; // reflow
+      el.classList.add('swap-flash');
+    });
+  }
+
+  function setMsg(text, cls = '') {
+    messageEl.textContent = text;
+    messageEl.className   = cls;
+  }
+
+  function updateMovesDisplay() {
+    movesValEl.textContent = movesLeft;
+    movesValEl.className   = movesLeft <= 5 ? 'low' : '';
+  }
+
+  function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  /* ===== GAME OVER ===== */
+
+  function triggerEndGame() {
+    setMsg('¡Sin movimientos! Mirá tu puntaje final.', 'end');
+    renderBoard(); // disable clicks via class
+    finalTrash.textContent = trashScore;
+    finalElec.textContent  = elecScore;
+    setTimeout(() => overlay.classList.add('show'), 600);
+  }
+
+  /* ===== NEW GAME ===== */
+
+  function newGame() {
+    overlay.classList.remove('show');
+    trashScore = 0;
+    elecScore  = 0;
+    movesLeft  = MOVES_MAX;
+    selected   = null;
+    busy       = false;
+    trashScoreEl.textContent = '0';
+    elecScoreEl.textContent  = '0';
+    movesValEl.textContent   = MOVES_MAX;
+    movesValEl.className     = '';
+    setMsg('¡Seleccioná una pieza!', '');
+    initBoard();
+    renderBoard();
+  }
+
+  document.getElementById('btn-nuevo').addEventListener('click', newGame);
+  document.getElementById('btn-overlay-nuevo').addEventListener('click', newGame);
+
+  /* ===== START ===== */
+  newGame();
+</script>
+</body>
+</html>
